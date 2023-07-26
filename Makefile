@@ -14,4 +14,3 @@ $(OBJS): obj/%.o: src/%.c $(HDRS)
 .PHONY: clean
 clean:
 	rm -rf Emulator obj/
-
