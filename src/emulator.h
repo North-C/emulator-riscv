@@ -236,7 +236,9 @@ enum exit_reason_t {
 
 typedef struct {
     enum exit_reason_t exit_reason;  // 跳出原因
-    u64 gp_regs[32];                 // 寄存器位置
+    u64 reenter_pc;                  // 返回的pc地址
+    u64 gp_regs[num_gp_regs];        // 通用寄存器
+    fp_reg_t fp_regs[num_fp_regs];   // 浮点寄存器
     u64 pc;                          // 程序执行的位置
 } state_t;
 
