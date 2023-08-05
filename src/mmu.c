@@ -77,3 +77,31 @@ void mmu_load_elf(mmu_t* mmu, int fd) {
         if (phdr.p_type == PT_LOAD) mmu_load_segment(mmu, &phdr, fd);
     }
 }
+
+/* allocate and release memory for program */
+u64 mmu_alloc(mmu_t* mmu, i64 sz) {
+    int pagesz = getpagesize();
+    u64 base = mmu->guest_alloc;
+    assert(base >= mmu->base);
+
+    mmu->guest_alloc += sz;
+    assert(mmu->guest_alloc >= mmu->base);
+
+    // 不够用时，再申请
+    if (sz > 0 && mmu->guest_alloc > TO_GUEST(mmu->host_alloc)) {
+        if (mmap((void*)mmu->host_alloc, ROUNDUP(sz, pagesz),
+                 PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1,
+                 0) == MAP_FAILED)
+            Fatal("mmap failed");
+
+        mmu->host_alloc += ROUNDUP(sz, pagesz);
+    } else if (sz < 0 &&
+               ROUNDUP(mmu->guest_alloc, pagesz) < TO_GUEST(mmu->host_alloc)) {
+        u64 len = TO_GUEST(mmu->host_alloc) - ROUNDUP(mmu->guest_alloc, pagesz);
+
+        if (munmap((void*)mmu->host_alloc, len) == -1) Fatal(strerror(errno));
+        mmu->host_alloc -= len;
+    }
+
+    return base;
+}

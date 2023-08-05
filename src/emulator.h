@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include "reg.h"
@@ -61,6 +63,8 @@
         (void)(&_a == &_b); \
         _a < _b ? _a : _b;  \
     })
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 /**
  * decode.c
@@ -224,6 +228,11 @@ typedef struct {
     u64 guest_alloc;  // 后续guest使用的内存堆顶
 } mmu_t;
 void mmu_load_elf(mmu_t *, int);
+u64 mmu_alloc(mmu_t *, i64);
+
+inline void mmu_write(u64 addr, u8 *data, size_t len) {
+    memcpy((void *)TO_HOST(addr), (void *)data, len);
+}
 
 /**
  * state.c
@@ -251,6 +260,17 @@ typedef struct {
     mmu_t mmu;
 } machine_t;
 
+inline u64 machine_get_gp_reg(machine_t *m, i32 reg) {
+    assert(reg >= 0 && reg < num_gp_regs);
+    return m->state.gp_regs[reg];
+}
+
+inline void machine_set_gp_reg(machine_t *m, i32 reg, u64 data) {
+    assert(reg >= 0 && reg < num_gp_regs);
+    m->state.gp_regs[reg] = data;
+}
+
+void machine_setup(machine_t *, int, char **);
 enum exit_reason_t machine_step(machine_t *);
 void machine_load_program(machine_t *, char *);
 
@@ -258,4 +278,6 @@ void exec_block_interp(state_t *);
 
 void insn_decode(insn_t *, u32);
 
+/* syscall.c */
+u64 do_syscall(machine_t *m, u64 n);
 #endif

@@ -1,9 +1,11 @@
 #include "emulator.h"
 
-#define QUADRANT(data) (((data) >> 0) & 0x3)  // 象限
+#define QUADRANT(data) (((data) >> 0) & 0x3)
 
-/* Normal type */
-#define OPCODE(dat) (((data) >> 2) & 0x1f)
+/**
+ * normal types
+ */
+#define OPCODE(data) (((data) >> 2) & 0x1f)
 #define RD(data) (((data) >> 7) & 0x1f)
 #define RS1(data) (((data) >> 15) & 0x1f)
 #define RS2(data) (((data) >> 20) & 0x1f)
@@ -13,10 +15,9 @@
 #define FUNCT7(data) (((data) >> 25) & 0x7f)
 #define IMM116(data) (((data) >> 26) & 0x3f)
 
-static inline insn_t insn_rtype_read(u32 data) {
+static inline insn_t insn_utype_read(u32 data) {
     return (insn_t){
-        .rs2 = RS2(data),
-        .rs1 = RS1(data),
+        .imm = (i32)data & 0xfffff000,
         .rd = RD(data),
     };
 }
@@ -29,24 +30,28 @@ static inline insn_t insn_itype_read(u32 data) {
     };
 }
 
-static inline insn_t insn_stype_read(u32 data) {
-    u32 imm5_11 = (data >> 25) & 0x7f;
-    u32 imm0_4 = (data >> 7) & 0x1f;
+static inline insn_t insn_jtype_read(u32 data) {
+    u32 imm20 = (data >> 31) & 0x1;
+    u32 imm101 = (data >> 21) & 0x3ff;
+    u32 imm11 = (data >> 20) & 0x1;
+    u32 imm1912 = (data >> 12) & 0xff;
+
+    i32 imm = (imm20 << 20) | (imm1912 << 12) | (imm11 << 11) | (imm101 << 1);
+    imm = (imm << 11) >> 11;
 
     return (insn_t){
-        .rs1 = RS1(data),
-        .rs2 = RS2(data),
-        .imm = (i32)(((imm5_11 << 5) | imm0_4) << 20) >> 20,
+        .imm = imm,
+        .rd = RD(data),
     };
 }
 
 static inline insn_t insn_btype_read(u32 data) {
     u32 imm12 = (data >> 31) & 0x1;
-    u32 imm5_10 = (data >> 25) & 0x3f;
-    u32 imm1_4 = (data >> 8) & 0xf;
+    u32 imm105 = (data >> 25) & 0x3f;
+    u32 imm41 = (data >> 8) & 0xf;
     u32 imm11 = (data >> 7) & 0x1;
 
-    i32 imm = (imm12 << 12) | (imm11 << 11) | (imm5_10 << 5) | (imm1_4 << 1);
+    i32 imm = (imm12 << 12) | (imm11 << 11) | (imm105 << 5) | (imm41 << 1);
     imm = (imm << 19) >> 19;
 
     return (insn_t){
@@ -56,36 +61,26 @@ static inline insn_t insn_btype_read(u32 data) {
     };
 }
 
-static inline insn_t insn_utype_read(u32 data) {
+static inline insn_t insn_rtype_read(u32 data) {
     return (insn_t){
+        .rs1 = RS1(data),
+        .rs2 = RS2(data),
         .rd = RD(data),
-        .imm = (i32)data & 0xfffff000,
     };
 }
 
-static inline insn_t insn_jtype_read(u32 data) {
-    u32 imm20 = (data >> 31) & 0x1;
-    u32 imm1_10 = (data >> 21) & 0x3ff;
-    u32 imm11 = (data >> 20) & 0x1;
-    u32 imm12_19 = (data >> 12) & 0xff;
+static inline insn_t insn_stype_read(u32 data) {
+    u32 imm115 = (data >> 25) & 0x7f;
+    u32 imm40 = (data >> 7) & 0x1f;
 
-    i32 imm = (imm20 << 20) | (imm12_19 << 12) | (imm11 << 11) | (imm1_10 << 1);
-    imm = (imm << 11) >> 11;
-
+    i32 imm = (imm115 << 5) | imm40;
+    imm = (imm << 20) >> 20;
     return (insn_t){
         .imm = imm,
-        .rd = RD(data),
+        .rs1 = RS1(data),
+        .rs2 = RS2(data),
     };
 }
-/* compressed type */
-#define COPCODE(data) (((data) >> 13) & 0x7)
-#define CFUNCT1(data) (((data) >> 12) & 0x1)
-#define CFUNCT2LOW(data) (((data) >> 5) & 0x3)
-#define CFUNCT2HIGH(data) (((data) >> 10) & 0x3)
-#define RP1(data) (((data) >> 7) & 0x7)
-#define RP2(data) (((data) >> 2) & 0x7)
-#define RC1(data) (((data) >> 7) & 0x1f)
-#define RC2(data) (((data) >> 2) & 0x1f)
 
 static inline insn_t insn_csrtype_read(u32 data) {
     return (insn_t){
@@ -104,33 +99,43 @@ static inline insn_t insn_fprtype_read(u32 data) {
     };
 }
 
-/* Compressed instruction read */
+/**
+ * compressed types
+ */
+#define COPCODE(data) (((data) >> 13) & 0x7)
+#define CFUNCT1(data) (((data) >> 12) & 0x1)
+#define CFUNCT2LOW(data) (((data) >> 5) & 0x3)
+#define CFUNCT2HIGH(data) (((data) >> 10) & 0x3)
+#define RP1(data) (((data) >> 7) & 0x7)
+#define RP2(data) (((data) >> 2) & 0x7)
+#define RC1(data) (((data) >> 7) & 0x1f)
+#define RC2(data) (((data) >> 2) & 0x1f)
+
+static inline insn_t insn_catype_read(u16 data) {
+    return (insn_t){
+        .rd = RP1(data) + 8,
+        .rs2 = RP2(data) + 8,
+        .rvc = TRUE,
+    };
+}
 
 static inline insn_t insn_crtype_read(u16 data) {
     return (insn_t){
-        .rd = RC1(data),
+        .rs1 = RC1(data),
         .rs2 = RC2(data),
         .rvc = TRUE,
     };
 }
 
-static inline insn_t insn_catype_read(u16 data) {
-    return (insn_t){
-        .rd = RP1(data) + 8,
-        .rs2 = RS2(data) + 8,
-        .rvc = TRUE,
-    };
-}
-
 static inline insn_t insn_citype_read(u16 data) {
-    u32 imm0_4 = (data >> 2) & 0x1f;
+    u32 imm40 = (data >> 2) & 0x1f;
     u32 imm5 = (data >> 12) & 0x1;
-    i32 imm = (imm5 << 5) | imm0_4;
+    i32 imm = (imm5 << 5) | imm40;
     imm = (imm << 26) >> 26;
 
     return (insn_t){
         .imm = imm,
-        .rs1 = RS1(data),
+        .rd = RC1(data),
         .rvc = TRUE,
     };
 }
@@ -344,16 +349,16 @@ static inline insn_t insn_ciwtype_read(u16 data) {
 }
 
 void insn_decode(insn_t *insn, u32 data) {
-    // 是否是压缩指令
     u32 quadrant = QUADRANT(data);
     switch (quadrant) {
-        case 0x0: { /* C.ADDI4SPN */
+        case 0x0: {
             u32 copcode = COPCODE(data);
+
             switch (copcode) {
-                case 0: /* C.ADDI4SPN */
+                case 0x0: /* C.ADDI4SPN */
                     *insn = insn_ciwtype_read(data);
                     insn->rs1 = sp;
-                    insn->type = insn_fld;
+                    insn->type = insn_addi;
                     assert(insn->imm != 0);
                     return;
                 case 0x1: /* C.FLD */
@@ -370,13 +375,13 @@ void insn_decode(insn_t *insn, u32 data) {
                     return;
                 case 0x5: /* C.FSD */
                     *insn = insn_cstype_read(data);
-                    insn->type = insn_sw;
+                    insn->type = insn_fsd;
                     return;
                 case 0x6: /* C.SW */
                     *insn = insn_cstype_read2(data);
-                    insn->type = insn_sd;
+                    insn->type = insn_sw;
                     return;
-                case 0x7:
+                case 0x7: /* C.SD */
                     *insn = insn_cstype_read(data);
                     insn->type = insn_sd;
                     return;
@@ -412,7 +417,7 @@ void insn_decode(insn_t *insn, u32 data) {
                         *insn = insn_citype_read3(data);
                         assert(insn->imm != 0);
                         insn->rs1 = insn->rd;
-                        insn->type = insn_lui;
+                        insn->type = insn_addi;
                         return;
                     } else { /* C.LUI */
                         *insn = insn_citype_read5(data);
@@ -494,22 +499,26 @@ void insn_decode(insn_t *insn, u32 data) {
                                     unreachable();
                             }
                         }
-                        case 0x5: /* C.J */
-                            *insn = insn_cjtype_read(data);
-                            insn->rd = zero;
-                            insn->type = insn_jal;
-                            insn->continu = TRUE;
-                            return;
-                        case 0x6: /* C.BEQZ */
-                        case 0x7: /* C.BNEZ */
-                            *insn = insn_cbtype_read(data);
-                            insn->rs2 = zero;
-                            insn->type = copcode == 0x6 ? insn_beq : insn_bne;
-                            return;
+                            unreachable();
                         default:
-                            Fatal("unrecognized copcode");
+                            unreachable();
                     }
                 }
+                    unreachable();
+                case 0x5: /* C.J */
+                    *insn = insn_cjtype_read(data);
+                    insn->rd = zero;
+                    insn->type = insn_jal;
+                    insn->continu = TRUE;
+                    return;
+                case 0x6: /* C.BEQZ */
+                case 0x7: /* C.BNEZ */
+                    *insn = insn_cbtype_read(data);
+                    insn->rs2 = zero;
+                    insn->type = copcode == 0x6 ? insn_beq : insn_bne;
+                    return;
+                default:
+                    Fatal("unrecognized copcode");
             }
         }
             unreachable();
@@ -604,36 +613,32 @@ void insn_decode(insn_t *insn, u32 data) {
             switch (opcode) {
                 case 0x0: {
                     u32 funct3 = FUNCT3(data);
-                    *insn = insn_itype_read(data);
 
+                    *insn = insn_itype_read(data);
                     switch (funct3) {
-                        case 0x0: {
+                        case 0x0: /* LB */
                             insn->type = insn_lb;
                             return;
-                        }
-                        case 0x1: {
+                        case 0x1: /* LH */
                             insn->type = insn_lh;
                             return;
-                        }
-                        case 0x2: {
+                        case 0x2: /* LW */
                             insn->type = insn_lw;
                             return;
-                        }
-                        case 0x4: {
+                        case 0x3: /* LD */
+                            insn->type = insn_ld;
+                            return;
+                        case 0x4: /* LBU */
                             insn->type = insn_lbu;
                             return;
-                        }
-                        case 0x5: {
+                        case 0x5: /* LHU */
                             insn->type = insn_lhu;
                             return;
-                        }
-                        case 0x6: {
+                        case 0x6: /* LWU */
                             insn->type = insn_lwu;
                             return;
-                        }
-                        default: {
+                        default:
                             unreachable();
-                        }
                     }
                 }
                     unreachable();
@@ -646,7 +651,7 @@ void insn_decode(insn_t *insn, u32 data) {
                             insn->type = insn_flw;
                             return;
                         case 0x3: /* FLD */
-                            insn->type = insn_flw;
+                            insn->type = insn_fld;
                             return;
                         default:
                             unreachable();
@@ -660,6 +665,12 @@ void insn_decode(insn_t *insn, u32 data) {
                         case 0x0: { /* FENCE */
                             insn_t _insn = {0};
                             *insn = _insn;
+                            insn->type = insn_fence;
+                            return;
+                        }
+                        case 0x1: { /* FENCE.I */
+                            insn_t _insn = {0};
+                            *insn = _insn;
                             insn->type = insn_fence_i;
                             return;
                         }
@@ -670,6 +681,8 @@ void insn_decode(insn_t *insn, u32 data) {
                     unreachable();
                 case 0x4: {
                     u32 funct3 = FUNCT3(data);
+
+                    *insn = insn_itype_read(data);
                     switch (funct3) {
                         case 0x0: /* ADDI */
                             insn->type = insn_addi;
@@ -696,9 +709,9 @@ void insn_decode(insn_t *insn, u32 data) {
                         case 0x5: {
                             u32 imm116 = IMM116(data);
 
-                            if (imm116 == 0x0) {          // SRLI
+                            if (imm116 == 0x0) {         /* SRLI */
                                 insn->type = insn_srli;
-                            } else if (imm116 == 0x10) {  // SRAI
+                            } else if (imm116 == 0x10) { /* SRAI */
                                 insn->type = insn_srai;
                             } else {
                                 unreachable();
@@ -710,7 +723,7 @@ void insn_decode(insn_t *insn, u32 data) {
                             insn->type = insn_ori;
                             return;
                         case 0x7: /* ANDI */
-                            insn->type = insn_addi;
+                            insn->type = insn_andi;
                             return;
                         default:
                             Fatal("unrecognized funct3");
