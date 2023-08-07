@@ -6,6 +6,7 @@
 #include <error.h>
 #include <fcntl.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -16,6 +17,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "elf.h"
 #include "reg.h"
 #include "types.h"
 
@@ -214,8 +216,8 @@ typedef struct {
     i32 imm;
     i16 csr;                // 状态控制指令
     enum insn_type_t type;  // 指令类型
-    BOOL rvc;               // 是否为rvc 指令
-    BOOL continu;           // 是否继续执行
+    bool rvc;               // 是否为rvc 指令
+    bool continu;           // 是否继续执行
 } insn_t;
 
 /**
@@ -241,6 +243,7 @@ enum exit_reason_t {
     NONE,
     DIRECT_JMP,
     INDIRECT_JMP,
+    INTERP,
     ECALL,
 };
 
@@ -252,12 +255,88 @@ typedef struct {
     u64 pc;                          // 程序执行的位置
 } state_t;
 
+/* cache.c */
+#define CACHE_ENTRY_SIZE (64 * 1024)
+#define CACHE_SIZE (64 * 1024 * 1024)
+
+typedef struct {
+    u64 pc;
+    u64 hot;
+    u64 offset;
+} cache_item_t;
+
+typedef struct {
+    u8 *jitcode;
+    u64 offset;
+    cache_item_t table[CACHE_ENTRY_SIZE];
+} cache_t;
+
+cache_t *new_cache();
+u8 *cache_lookup(cache_t *, u64);
+u8 *cache_add(cache_t *, u64, u8 *, size_t, u64);
+bool cache_hot(cache_t *, u64);
+
+/* str.c */
+#define STR_MAX_PREALLOC (1024 * 1024)
+#define STRHDR(s) ((strhdr_t *)((s) - (sizeof(strhdr_t))))
+
+#define DECLARE_STATIC_STR(name) \
+    static str_t name = NULL;    \
+    if (name)                    \
+        str_clear(name);         \
+    else                         \
+        name = str_new();
+
+typedef char *str_t;
+
+typedef struct {
+    u64 len;
+    u64 alloc;
+    char buf[];
+} strhdr_t;
+
+inline str_t str_new() {
+    strhdr_t *h = (strhdr_t *)calloc(1, sizeof(strhdr_t));
+    return h->buf;
+}
+
+inline size_t str_len(const str_t str) { return STRHDR(str)->len; }
+
+void str_clear(str_t);
+
+str_t str_append(str_t, const char *);
+
+/* stack.c */
+#define STACK_CAP 256
+
+typedef struct {
+    i64 top;
+    u64 elems[STACK_CAP];
+} stack_t;
+
+void stack_push(stack_t *, u64);
+bool stack_pop(stack_t *, u64 *);
+void stack_reset(stack_t *);
+void stack_print(stack_t *);
+
+/* set.c */
+#define SET_SIZE (32 * 1024)
+
+typedef struct {
+    u64 table[SET_SIZE];
+} set_t;
+
+bool set_has(set_t *, u64);
+bool set_add(set_t *, u64);
+void set_reset(set_t *);
+
 /**
  * machine.c
  */
 typedef struct {
     state_t state;
     mmu_t mmu;
+    cache_t *cache;
 } machine_t;
 
 inline u64 machine_get_gp_reg(machine_t *m, i32 reg) {
@@ -273,8 +352,11 @@ inline void machine_set_gp_reg(machine_t *m, i32 reg, u64 data) {
 void machine_setup(machine_t *, int, char **);
 enum exit_reason_t machine_step(machine_t *);
 void machine_load_program(machine_t *, char *);
-
+typedef void (*exec_block_func_t)(state_t *);
 void exec_block_interp(state_t *);
+
+str_t machine_genblock(machine_t *m);
+u8 *machine_compile(machine_t *, str_t);
 
 void insn_decode(insn_t *, u32);
 

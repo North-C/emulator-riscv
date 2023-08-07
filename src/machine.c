@@ -1,22 +1,54 @@
 #include "emulator.h"
 
 enum exit_reason_t machine_step(machine_t* m) {
-    while (TRUE) {
-        m->state.exit_reason = NONE;
-        exec_block_interp(&m->state);
-        assert(m->state.exit_reason != NONE);
+    while (true) {
+        bool hot = true;
 
-        if (m->state.exit_reason == INDIRECT_JMP ||
-            m->state.exit_reason == DIRECT_JMP) {
-            m->state.pc = m->state.reenter_pc;
-            continue;  // reservation for JIT
+        u8* code = cache_lookup(m->cache, m->state.pc);
+        if (code == NULL) {
+            hot = cache_hot(m->cache, m->state.pc);
+            if (hot) {
+                // generate local instruction code.
+                str_t source = machine_genblock(m);
+                code = machine_compile(m, source);
+            }
         }
-        break;
-    }
+        if (!hot) {
+            code = (u8*)exec_block_interp;
+        }
 
-    m->state.pc = m->state.reenter_pc;
-    assert(m->state.exit_reason == ECALL);
-    return ECALL;
+        while (true) {
+            m->state.exit_reason = NONE;
+            ((exec_block_func_t)code)(&m->state);
+            assert(m->state.exit_reason != NONE);
+
+            if (m->state.exit_reason == INDIRECT_JMP ||
+                m->state.exit_reason == DIRECT_JMP) {
+                // in cache
+                code = cache_lookup(m->cache, m->state.reenter_pc);
+                if (code != NULL) continue;
+            }
+
+            if (m->state.exit_reason == INTERP) {
+                m->state.pc = m->state.reenter_pc;
+                code = (u8*)exec_block_interp;
+                continue;
+            }
+            break;
+        }
+
+        m->state.pc = m->state.reenter_pc;
+        switch (m->state.exit_reason) {
+            case DIRECT_JMP:
+            case INDIRECT_JMP:
+                // continue execution
+                break;
+            case ECALL:
+                return ECALL;
+            default:
+                unreachable();
+        }
+    }
 }
 
 /**
