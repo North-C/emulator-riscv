@@ -115,7 +115,7 @@ static inline insn_t insn_catype_read(u16 data) {
     return (insn_t){
         .rd = RP1(data) + 8,
         .rs2 = RP2(data) + 8,
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -123,7 +123,7 @@ static inline insn_t insn_crtype_read(u16 data) {
     return (insn_t){
         .rs1 = RC1(data),
         .rs2 = RC2(data),
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -136,7 +136,7 @@ static inline insn_t insn_citype_read(u16 data) {
     return (insn_t){
         .imm = imm,
         .rd = RC1(data),
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -150,7 +150,7 @@ static inline insn_t insn_citype_read2(u16 data) {
     return (insn_t){
         .imm = imm,
         .rd = RC1(data),
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -168,7 +168,7 @@ static inline insn_t insn_citype_read3(u16 data) {
     return (insn_t){
         .imm = imm,
         .rd = RC1(data),
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -182,7 +182,7 @@ static inline insn_t insn_citype_read4(u16 data) {
     return (insn_t){
         .imm = imm,
         .rd = RC1(data),
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -195,7 +195,7 @@ static inline insn_t insn_citype_read5(u16 data) {
     return (insn_t){
         .imm = imm,
         .rd = RC1(data),
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -213,7 +213,7 @@ static inline insn_t insn_cbtype_read(u16 data) {
     return (insn_t){
         .imm = imm,
         .rs1 = RP1(data) + 8,
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -226,7 +226,7 @@ static inline insn_t insn_cbtype_read2(u16 data) {
     return (insn_t){
         .imm = imm,
         .rd = RP1(data) + 8,
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -240,7 +240,7 @@ static inline insn_t insn_cstype_read(u16 data) {
         .imm = imm,
         .rs1 = RP1(data) + 8,
         .rs2 = RP2(data) + 8,
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -255,7 +255,7 @@ static inline insn_t insn_cstype_read2(u16 data) {
         .imm = imm,
         .rs1 = RP1(data) + 8,
         .rs2 = RP2(data) + 8,
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -274,7 +274,7 @@ static inline insn_t insn_cjtype_read(u16 data) {
     imm = (imm << 20) >> 20;
     return (insn_t){
         .imm = imm,
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -289,7 +289,7 @@ static inline insn_t insn_cltype_read(u16 data) {
         .imm = imm,
         .rs1 = RP1(data) + 8,
         .rd = RP2(data) + 8,
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -303,7 +303,7 @@ static inline insn_t insn_cltype_read2(u16 data) {
         .imm = imm,
         .rs1 = RP1(data) + 8,
         .rd = RP2(data) + 8,
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -316,7 +316,7 @@ static inline insn_t insn_csstype_read(u16 data) {
     return (insn_t){
         .imm = imm,
         .rs2 = RC2(data),
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -329,7 +329,7 @@ static inline insn_t insn_csstype_read2(u16 data) {
     return (insn_t){
         .imm = imm,
         .rs2 = RC2(data),
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -344,7 +344,7 @@ static inline insn_t insn_ciwtype_read(u16 data) {
     return (insn_t){
         .imm = imm,
         .rd = RP2(data) + 8,
-        .rvc = TRUE,
+        .rvc = true,
     };
 }
 
@@ -509,7 +509,7 @@ void insn_decode(insn_t *insn, u32 data) {
                     *insn = insn_cjtype_read(data);
                     insn->rd = zero;
                     insn->type = insn_jal;
-                    insn->continu = TRUE;
+                    insn->continu = true;
                     return;
                 case 0x6: /* C.BEQZ */
                 case 0x7: /* C.BNEZ */
@@ -558,7 +558,7 @@ void insn_decode(insn_t *insn, u32 data) {
                                 assert(insn->rs1 != 0);
                                 insn->rd = zero;
                                 insn->type = insn_jalr;
-                                insn->continu = TRUE;
+                                insn->continu = true;
                             } else { /* C.MV */
                                 insn->rd = insn->rs1;
                                 insn->rs1 = zero;
@@ -575,7 +575,7 @@ void insn_decode(insn_t *insn, u32 data) {
                             } else if (insn->rs2 == 0) { /* C.JALR */
                                 insn->rd = ra;
                                 insn->type = insn_jalr;
-                                insn->continu = TRUE;
+                                insn->continu = true;
                             } else { /* C.ADD */
                                 insn->rd = insn->rs1;
                                 insn->type = insn_add;
@@ -1329,17 +1329,17 @@ void insn_decode(insn_t *insn, u32 data) {
                 case 0x19: /* JALR */
                     *insn = insn_itype_read(data);
                     insn->type = insn_jalr;
-                    insn->continu = TRUE;
+                    insn->continu = true;
                     return;
                 case 0x1b: /* JAL */
                     *insn = insn_jtype_read(data);
                     insn->type = insn_jal;
-                    insn->continu = TRUE;
+                    insn->continu = true;
                     return;
                 case 0x1c: {
                     if (data == 0x73) { /* ECALL */
                         insn->type = insn_ecall;
-                        insn->continu = TRUE;
+                        insn->continu = true;
                         return;
                     }
 

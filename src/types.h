@@ -3,9 +3,7 @@
 
 #include <stdint.h>
 
-#define BOOL int
-#define TRUE 1
-#define FALSE 0
+
 
 typedef int8_t i8;
 typedef uint8_t u8;

@@ -253,7 +253,7 @@ static void func_lui(state_t *state, insn_t *insn) {
         if (expr) {                                      \
             state->reenter_pc = state->pc = target_addr; \
             state->exit_reason = DIRECT_JMP;             \
-            insn->continu = TRUE;                        \
+            insn->continu = true;                        \
         }                                                \
     }
 
@@ -442,11 +442,11 @@ static void func_fmax_d(state_t *state, insn_t *insn) {
     state->fp_regs[insn->rd].v =           \
         (u64)fsgnj32(rs1, rs2, n, x) | ((uint64_t)-1 << 32);
 
-static void func_fsgnj_s(state_t *state, insn_t *insn) { FUNC(FALSE, FALSE); }
+static void func_fsgnj_s(state_t *state, insn_t *insn) { FUNC(false, false); }
 
-static void func_fsgnjn_s(state_t *state, insn_t *insn) { FUNC(TRUE, FALSE); }
+static void func_fsgnjn_s(state_t *state, insn_t *insn) { FUNC(true, false); }
 
-static void func_fsgnjx_s(state_t *state, insn_t *insn) { FUNC(FALSE, TRUE); }
+static void func_fsgnjx_s(state_t *state, insn_t *insn) { FUNC(false, true); }
 
 #undef FUNC
 
@@ -455,9 +455,9 @@ static void func_fsgnjx_s(state_t *state, insn_t *insn) { FUNC(FALSE, TRUE); }
     u64 rs2 = state->fp_regs[insn->rs2].v; \
     state->fp_regs[insn->rd].v = fsgnj64(rs1, rs2, n, x);
 
-static void func_fsgnj_d(state_t *state, insn_t *insn) { FUNC(FALSE, FALSE); }
-static void func_fsgnjn_d(state_t *state, insn_t *insn) { FUNC(TRUE, FALSE); }
-static void func_fsgnjx_d(state_t *state, insn_t *insn) { FUNC(FALSE, TRUE); }
+static void func_fsgnj_d(state_t *state, insn_t *insn) { FUNC(false, false); }
+static void func_fsgnjn_d(state_t *state, insn_t *insn) { FUNC(true, false); }
+static void func_fsgnjx_d(state_t *state, insn_t *insn) { FUNC(false, true); }
 
 #undef FUNC
 
@@ -624,7 +624,7 @@ static func_t *funcs[] = {
 void exec_block_interp(state_t *state) {
     static insn_t insn = {0};
 
-    while (TRUE) {
+    while (true) {
         // 取码
         u32 data = *(u32 *)TO_HOST(state->pc);
         // 译码

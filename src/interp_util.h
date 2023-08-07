@@ -35,12 +35,12 @@ inline int64_t mulhsu(int64_t a, uint64_t b) {
 #define F32_SIGN ((uint32_t)1 << 31)
 #define F64_SIGN ((uint64_t)1 << 63)
 
-inline u32 fsgnj32(u32 a, u32 b, BOOL n, BOOL x) {
+inline u32 fsgnj32(u32 a, u32 b, bool n, bool x) {
     u32 v = x ? a : n ? F32_SIGN : 0;
     return (a & ~F32_SIGN) | ((v ^ b) & F32_SIGN);
 }
 
-inline u64 fsgnj64(u64 a, u64 b, BOOL n, BOOL x) {
+inline u64 fsgnj64(u64 a, u64 b, bool n, bool x) {
     u64 v = x ? a : n ? F64_SIGN : 0;
     return (a & ~F64_SIGN) | ((v ^ b) & F64_SIGN);
 }
@@ -49,7 +49,7 @@ union u32_f32 {
     u32 ui;
     f32 f;
 };
-#define signF32UI(x) ((BOOL)((uint32_t)(x) >> 31))
+#define signF32UI(x) ((bool)((uint32_t)(x) >> 31))
 #define expF32UI(x) ((int_fast16_t)((x) >> 23) & 0xFF)
 #define fracF32UI(x) ((x)&0x007FFFFF)
 #define isNaNF32UI(x) (((~(x)&0x7F800000) == 0) && ((x)&0x007FFFFF))
@@ -65,10 +65,10 @@ inline u16 f32_classify(f32 a) {
 
     u16 infOrNaN = expF32UI(uiA) == 0xFF;
     u16 subnormalOrZero = expF32UI(uiA) == 0;
-    BOOL sign = signF32UI(uiA);
-    BOOL fracZero = fracF32UI(uiA) == 0;
-    BOOL isNaN = isNaNF32UI(uiA);
-    BOOL isSNaN = isSigNaNF32UI(uiA);
+    bool sign = signF32UI(uiA);
+    bool fracZero = fracF32UI(uiA) == 0;
+    bool isNaN = isNaNF32UI(uiA);
+    bool isSNaN = isSigNaNF32UI(uiA);
 
     return (sign && infOrNaN && fracZero) << 0 |
            (sign && !infOrNaN && !subnormalOrZero) << 1 |
@@ -85,7 +85,7 @@ union u64_f64 {
     u64 ui;
     f64 f;
 };
-#define signF64UI(a) ((BOOL)((uint64_t)(a) >> 63))
+#define signF64UI(a) ((bool)((uint64_t)(a) >> 63))
 #define expF64UI(a) ((int_fast16_t)((a) >> 52) & 0x7FF)
 #define fracF64UI(a) ((a)&UINT64_C(0x000FFFFFFFFFFFFF))
 #define isNaNF64UI(a)                              \
@@ -104,10 +104,10 @@ inline u16 f64_classify(f64 a) {
 
     u16 infOrNaN = expF64UI(uiA) == 0x7FF;
     u16 subnormalOrZero = expF64UI(uiA) == 0;
-    BOOL sign = signF64UI(uiA);
-    BOOL fracZero = fracF64UI(uiA) == 0;
-    BOOL isNaN = isNaNF64UI(uiA);
-    BOOL isSNaN = isSigNaNF64UI(uiA);
+    bool sign = signF64UI(uiA);
+    bool fracZero = fracF64UI(uiA) == 0;
+    bool isNaN = isNaNF64UI(uiA);
+    bool isSNaN = isSigNaNF64UI(uiA);
 
     return (sign && infOrNaN && fracZero) << 0 |
            (sign && !infOrNaN && !subnormalOrZero) << 1 |
